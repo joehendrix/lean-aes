@@ -18,8 +18,8 @@ abbrev Nb := 4
 
 abbrev Nr (k : Nat) : Nat := 6 + k
 
-
-abbrev AESKeySize k := k*32
+@[reducible]
+def AESKeySize k := k * 32
 
 structure GF28 where
   value : UInt8
@@ -65,12 +65,13 @@ instance : OfNat GF28 n where
 instance : ToString GF28 where
   toString x :=  "0x" ++ (Nat.toDigits 16 x.value.toNat).asString
 
+protected def rotateRight (x : GF28) (i : Nat) : GF28 :=
+  let l := x.value >>> (UInt8.ofNat i)
+  let h := (x.value.toNat % (2^i)) <<< (8 - i)
+  { value := UInt8.ofNat h + l }
+
 instance : HShiftRight GF28 Nat GF28 where
-  hShiftRight x i :=
-    let i := i % 8
-    let l := x.value >>> i
-    let h := (x.value.toNat % (2^i)) <<< (8 - i)
-    { value := UInt8.ofNat h + l }
+  hShiftRight := GF28.rotateRight
 
 protected def toFin (v : GF28) : Fin 256 := v.value.val
 
@@ -164,16 +165,14 @@ def ShiftRows (state : State) : State := Vec.ofFn (fun i => state[i].rotateL i.v
 
 def InvShiftRows (state : State) : State := Vec.ofFn (fun i => state[i].rotateR i.val)
 
-def gf28MatrixMult (x : Vec m (Vec n GF28)) (y : Vec n (Vec p GF28)) : Vec m (Vec p GF28) := Vec.mmult x y
-
 -- The MixColumns transform and its inverse
-def MixColumns (state : State) : State := gf28MatrixMult m state
+def MixColumns (state : State) : State := Vec.mmult m state
   where m := #v[#v[2, 3, 1, 1],
                 #v[1, 2, 3, 1],
                 #v[1, 1, 2, 3],
                 #v[3, 1, 1, 2]]
 
-def InvMixColumns (state : State) : State := gf28MatrixMult m state
+def InvMixColumns (state : State) : State := Vec.mmult m state
   where m := #v[#v[0x0e, 0x0b, 0x0d, 0x09],
                 #v[0x09, 0x0e, 0x0b, 0x0d],
                 #v[0x0d, 0x09, 0x0e, 0x0b],
@@ -235,6 +234,20 @@ def aesDecrypt (k : Nat := AES128) (kpos : 1 ≤ k) (ct : BitVec 128) (key : Bit
   for rk in ks.value.reverse do
     s := AESInvRound rk s
   return stateToMsg (AESFinalInvRound kFinal s)
+
+
+#print stateToMsg
+
+@[simp]
+theorem msgToState_stateToMsg (s : State) : msgToState (stateToMsg s) = s := by
+  admit
+-- (msgToState
+--            (stateToMsg
+
+theorem decryptEncrypt (k : Nat) (kpos : 1 ≤ k) (pt : BitVec 128) (key : BitVec (AESKeySize k)) :
+    aesDecrypt k kpos (aesEncrypt k kpos pt key) key = pt := by
+  simp [aesEncrypt, aesDecrypt, Id.run, AESFinalRound]
+  admit
 
 /--
 info: 0x3925841d02dc09fbdc118597196a0b32#128

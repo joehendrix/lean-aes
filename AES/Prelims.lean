@@ -19,7 +19,7 @@ end Nat
 namespace Fin
 
 /-- Folds over `Fin n` from the left: `foldl 3 f x = f (f (f x 0) 1) 2`. -/
-@[inline] def foldl (n) (f : α → Fin n → α) (init : α) : α := loop init 0 where
+@[specialize] def foldl (n) (f : α → Fin n → α) (init : α) : α := loop init 0 where
   /-- Inner loop for `Fin.foldl`. `Fin.foldl.loop n f x i = f (f (f x i) ...) (n-1)`  -/
   loop (x : α) (i : Nat) : α :=
     if h : i < n then loop (f x ⟨i, h⟩) (i+1) else x
@@ -27,13 +27,14 @@ namespace Fin
 
 end Fin
 
-
+/-
 namespace UInt8
 
 instance : HShiftRight UInt8 Nat UInt8 where
   hShiftRight x i := UInt8.ofNat (x.toNat >>> i)
 
 end UInt8
+-/
 
 def ofRangeAux (motive : Nat → Sort u) (s e : Nat) (f : ∀(i : Nat), s ≤ i → i < e → motive i → motive (i+1)) (i : Nat) (lb : s ≤ i) (ub : i ≤ e) (c : motive i) : motive e :=
   if lt : i < e then
